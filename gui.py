@@ -1,5 +1,6 @@
 from tkinter import *
-#from crawler import *
+from PIL import ImageTk, Image
+from crawler import *
 
 class Application:
     def __init__(self):
@@ -14,24 +15,41 @@ class Application:
         #self.save_path.add_command(label="종료")
 
         #Add menu on toolbar
-        self.exit_menu = Menu(self.toolbar)
-        self.toolbar.add_cascade(label="종료", menu=self.exit_menu)
+        self.menu = Menu(self.toolbar)
+        self.menu.add_command(label="종료",command=self.clientExit)
+        self.toolbar.add_cascade(label="메뉴", menu=self.menu)
 
-        self.name_label = Label(self.app, text="저장경로")
+        self.name_label = Label(self.app, text="검색 키워드")
         self.name_label.grid(row=0, column=0)
 
         self.text_box = Entry(self.app)
         self.text_box.grid(row=0, column=1)
 
-        self.get_button = Button(self.app, text="Send", command=self.crawlWebImage())
-        self.get_button.grid(row=1, column=1)
+        self.get_button = Button(self.app, text="Send", command=self.crawlWebImage)
+        self.get_button.grid(row=0, column=2)
 
-        #self.image_labe = Label(image=PhotoImage(file=''))
+        #Image initializing
+        hommy = ImageTk.PhotoImage(self.getHommyImage())
+
+        self.image_label = Label(self.app, image=hommy)
+        self.image_label.image = hommy
+        self.image_label.place(x=0, y=25)
+
+        self.app.geometry("300x325")
+        self.app.resizable(False, False)
+
+    def getHommyImage(self):
+        img = Image.open('./img/hommy.jpg')
+        img = img.resize((300, 300), Image.ANTIALIAS)
+
+        return img
 
     def clientExit(self):
         exit()
 
     def crawlWebImage(self):
-        b = 1
+        crawler = OtakuCrawler()
+        crawler.searchImageByKeyword(self.text_box.get())
+
     def run(self):
         self.app.mainloop()
