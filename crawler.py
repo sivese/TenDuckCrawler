@@ -1,54 +1,78 @@
 import pickle
-import cssutils
 from bs4 import BeautifulSoup
 import requests
 from selenium import webdriver
-import queue
+import datetime
+import os, time
 from PIL import Image
 from io import BytesIO
 from urllib.request import urlopen
 
 class OtakuCrawler:
-   def __init__(self):
-      self.b = 10
-      self.url = "https://www.pixiv.net/search.php?s_mode=s_tag&word=moe"
+	def __init__(self):
+		self.b = 10
+		self.url = "https://www.pixiv.net/search.php?word=moe&p=3"
 
-      options = webdriver.ChromeOptions()
-      options.add_argument('headless')
-      options.add_argument('disable=gpu')
+		options = webdriver.ChromeOptions()
+		options.add_argument('headless')
+		options.add_argument('window-size=1920x6480')
+		options.add_argument('disable=gpu')
 
-      self.driver = webdriver.Chrome('chromedriver.exe', chrome_options=options)
-      self.driver.implicitly_wait(3)
-      self.download_que = []
+		self.driver = webdriver.Chrome('./driver/chromedriver.exe', chrome_options=options)
+		self.driver.implicitly_wait(3)
+		self.download_que = []
+		self.save_directory = ''
+		self.counter = 0
 
-      pickle.dump(self.driver.get_cookies(),open("cookies.pkl","wb"))
+		pickle.dump(self.driver.get_cookies(),open("cookies.pkl","wb"))
 
-   def nextPage(self, page):
-      url = self.url + "&p=" + page
+	def nextPage(self, page):
+		url = self.url + "&p=" + page
 
-   def run(self):
-      self.driver.get(self.url)
-      cookies = pickle.load(open("cookies.pkl", "rb"))
-      for cookie in cookies:
-         driver.add_cookie(cookie)
-      html = self.driver.page_source
-      soup = BeautifulSoup(html, 'html.parser')
-      image_list = soup.find("section",id="js-react-search-mid").find("div")
+	def writeDownloadFile(self, url):
+		headers = {"Referer": "https://www.pixiv.net/"}
+		response = requests.get(url, headers = headers)
 
-      #for div in image_list:
-      #   div_style = div.select("figure > div > a > div")[0]
-      #   s = str(div_style)
-      #   print(s)
-      #   begin = s.find("url(")
-      #   end = s.find(");")
+		with open("./"+self.save_directory+"/"+ str(self.counter)+".jpg", 'wb') as f:
+			f.write(response.content)
 
-      #   url = s[begin + len("url("):end]
+		self.counter += 1
 
-      url = "https://i.pximg.net/c/240x240/img-master/img/2018/12/06/07/21/55/71986522_p0_master1200.jpg"
-      headers = {"Referer":"https://www.pixiv.net/"}
-      response = requests.get(url, headers = headers)
-      with open("./Fuckyou.jpg", 'wb') as f:
-         f.write(response.content)
+	def pushOnDownloadQueue(self, url):
+		if not ('background-image' in url):
+			return
+
+		begin = url.find("url(\"")
+		end = url.find("\");")
+		url = url[begin + len("url(\""):end]
+		self.download_que.append(url)
+
+	def run(self):
+		self.driver.get(self.url)
+
+		time.sleep(5)
+
+		html = self.driver.page_source
+		soup = BeautifulSoup(html, 'html.parser')
+		image_list = soup.find("section", id="js-react-search-mid").find("div")
+
+		for div in image_list:
+			div_style = div.select("figure > div > a > div")[0]
+			s = str(div_style)
+
+			self.pushOnDownloadQueue(s)
+
+		self.save_directory = datetime.datetime.now().strftime('%m%d %H%M%S')
+
+		try:
+			if not (os.path.isdir('./'+self.save_directory)):
+				os.makedirs(os.path.join('./'+self.save_directory))
+		except OSError as e:
+			print("Failed to create directory!!!!!")
+			raise
+
+		for qu in self.download_que:
+			self.writeDownloadFile(qu)
 
 otaku = OtakuCrawler()
 otaku.run()
