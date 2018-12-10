@@ -1,17 +1,15 @@
-import pickle
 from bs4 import BeautifulSoup
 import requests
 from selenium import webdriver
 import datetime
 import os, time
-from PIL import Image
-from io import BytesIO
-from urllib.request import urlopen
+from status import StatusBar
 
 class OtakuCrawler:
-	def __init__(self):
+	def __init__(self, keyword):
 		self.b = 10
-		self.url = "https://www.pixiv.net/search.php?word=moe&p=3"
+		self.page = 0
+		self.url = "https://www.pixiv.net/search.php?word="+keyword+"&p="
 
 		options = webdriver.ChromeOptions()
 		options.add_argument('headless')
@@ -23,11 +21,20 @@ class OtakuCrawler:
 		self.download_que = []
 		self.save_directory = ''
 		self.counter = 0
+		self.end = False
 
-		pickle.dump(self.driver.get_cookies(),open("cookies.pkl","wb"))
+	def crawl(self, range):
+		self.save_directory = datetime.datetime.now().strftime('%m%d %H%M%S')
+		#work_bar = StatusBar()
 
-	def nextPage(self, page):
-		url = self.url + "&p=" + page
+		while self.page <= range:
+			self.page += 1
+			url = self.url + str(self.page)
+			self.connect(url)
+			self.download_que.clear()
+
+		self.counter = 0
+		self.end = True
 
 	def writeDownloadFile(self, url):
 		headers = {"Referer": "https://www.pixiv.net/"}
@@ -47,8 +54,8 @@ class OtakuCrawler:
 		url = url[begin + len("url(\""):end]
 		self.download_que.append(url)
 
-	def run(self):
-		self.driver.get(self.url)
+	def connect(self, url):
+		self.driver.get(url)
 
 		time.sleep(5)
 
@@ -62,17 +69,15 @@ class OtakuCrawler:
 
 			self.pushOnDownloadQueue(s)
 
-		self.save_directory = datetime.datetime.now().strftime('%m%d %H%M%S')
-
 		try:
 			if not (os.path.isdir('./'+self.save_directory)):
 				os.makedirs(os.path.join('./'+self.save_directory))
 		except OSError as e:
-			print("Failed to create directory!!!!!")
+			print("Failed to create directory")
 			raise
 
 		for qu in self.download_que:
 			self.writeDownloadFile(qu)
 
-otaku = OtakuCrawler()
-otaku.run()
+	def isEnd(self):
+		return self.end
